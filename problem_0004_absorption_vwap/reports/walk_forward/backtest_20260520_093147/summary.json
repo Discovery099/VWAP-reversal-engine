@@ -1,0 +1,97 @@
+{
+  "run_type": "backtest",
+  "created_at_utc": "2026-05-20T09:31:47.356081+00:00",
+  "source_type": "synthetic_smoke_only",
+  "validation_status": "INSUFFICIENT_DATA",
+  "validation_reasons": [
+    "Only 14 directional absorption trades; need at least 100 for full validation."
+  ],
+  "metrics": {
+    "trade_count": 14,
+    "hit_rate": 0.5,
+    "expectancy_after_cost": -0.5530004160679839,
+    "total_net_pnl": -7.742005824951775,
+    "profit_factor": 0.708947149437927,
+    "max_drawdown": -18.18999999999869
+  },
+  "diagnostics": {
+    "absorption_event_count": 14,
+    "by_side": {
+      "above_vwap": 4,
+      "below_vwap": 10
+    },
+    "by_session": {
+      "MNQ|2024-01-02": 8,
+      "MNQ|2024-01-03": 6
+    },
+    "by_volume_bucket": {
+      "(90.0, 95.0]": 0.0,
+      "(95.0, 97.5]": 0.4,
+      "(97.5, 100.0]": 0.625
+    },
+    "by_time_bucket": {
+      "midday": 0.5
+    }
+  },
+  "config": {
+    "column_mapping": {
+      "timestamp": null,
+      "date": null,
+      "time": null,
+      "open": null,
+      "high": null,
+      "low": null,
+      "close": null,
+      "volume": null,
+      "symbol": null,
+      "timeframe": null,
+      "session_date": null
+    },
+    "default_symbol": "UNKNOWN",
+    "default_timeframe": "1m",
+    "source_type": "synthetic_smoke_only",
+    "session": {
+      "mode": "calendar_date",
+      "timezone": null,
+      "rth_start": null,
+      "rth_end": null
+    },
+    "zero_volume_policy": "carry_forward",
+    "features": {
+      "volume_lookback": 100,
+      "high_volume_percentile_threshold": 95,
+      "atr_length": 60,
+      "max_displacement_atr": 0.3,
+      "near_vwap_threshold_atr": 0.25,
+      "min_vwap_distance_atr": 0.0,
+      "reversal_horizon_bars": 15,
+      "volume_percentile_min_periods": 20
+    },
+    "validation": {
+      "folds": 5,
+      "min_events_for_full_validation": 100,
+      "min_events_per_fold": 20,
+      "min_hit_rate_lift_pp": 4.0,
+      "min_profit_factor_strong": 1.15,
+      "max_single_fold_profit_share": 0.5,
+      "random_seed": 7
+    },
+    "costs": {
+      "commission_per_trade": 0.0,
+      "spread": 0.0,
+      "slippage_ticks": 1.0,
+      "tick_size": 0.25,
+      "point_value": 1.0
+    },
+    "backtest": {
+      "include_near_vwap": false,
+      "stop_atr_multiple": null,
+      "target": "vwap",
+      "time_stop_bars": 15
+    },
+    "reports": {
+      "output_dir": "reports/walk_forward",
+      "write_html": true
+    }
+  }
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "content": "Phase 2: Implement baselines, walk-forward validation, plateau search, reporting, and cross-instrument support",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 4: Add tests and run pytest + CLI smoke commands",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 4: End-to-end validation using testing agent and fix all reported issues",
+    "status": "pending"
+  }
+]

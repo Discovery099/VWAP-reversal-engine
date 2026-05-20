@@ -1,0 +1,11 @@
+grid:
+  volume_lookback: [50, 75, 100, 150, 200]
+  high_volume_percentile_threshold: [90, 92.5, 95, 97.5]
+  atr_length: [20, 40, 60, 80]
+  max_displacement_atr: [0.2, 0.3, 0.4, 0.5]
+  near_vwap_threshold_atr: [0.1, 0.25, 0.5, 0.75]
+  reversal_horizon_bars: [5, 10, 15, 20]
+
+max_combinations: null
+min_neighbors_for_plateau: 5
+output_dir: reports/parameter_plateaus
