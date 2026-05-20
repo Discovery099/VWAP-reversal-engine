@@ -11,5 +11,10 @@ Research-first Pine + Python engine under `/app/problem_0004_absorption_vwap/`. 
 - Pine v6-compatible warning/paper module with confirmed-bar logic and manual QA notes.
 - Tests and smoke data for schema/pipeline validation only.
 
-## Validation Status
-Synthetic smoke data correctly returns `INSUFFICIENT_DATA` / `NO_STABLE_PLATEAU`; no performance claims are made from synthetic data. Real futures data is needed for MNQ-first validation.
+## Real MNQ Validation Run
+- Data: `/app/problem_0004_absorption_vwap/data/raw/MNQ_5min_RTH_6year.csv`
+- Config: `/app/problem_0004_absorption_vwap/configs/mnq_5min_rth.yaml`
+- Bars: 122,295; date range 2020-01-02 09:30 ET to 2026-03-06 15:55 ET.
+- Default absorption event count: 825; directional trades: 558.
+- Default validation verdict: `NOT_VALIDATED` due to negative after-cost expectancy and PF < 1.15.
+- Plateau search found stable in-sample parameter regions (`stable_count=1621`), but this does not validate the default strategy or justify trading recommendations.

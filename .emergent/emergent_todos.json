@@ -1,10 +1,6 @@
 [
   {
-    "content": "Run validate, backtest, plateau, report, and pytest on MNQ real data",
-    "status": "completed"
-  },
-  {
     "content": "Extract real-data metrics and produce concise honest verdict",
-    "status": "in_progress"
+    "status": "completed"
   }
 ]

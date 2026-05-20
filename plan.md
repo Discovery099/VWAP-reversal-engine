@@ -1,4 +1,4 @@
-# plan.md — Post-Absorption VWAP Reversal Engine (V1) — Updated (Post Verification)
+# plan.md — Post-Absorption VWAP Reversal Engine (V1) — Updated (Post MNQ Real-Data Run)
 
 ## 1. Objectives
 - Build a **research-first** Pine + Python engine under `/app/problem_0004_absorption_vwap/` to test the hypothesis: **high volume + low displacement ⇒ possible absorption proxy**, interpreted via **session VWAP context**.
@@ -20,9 +20,13 @@
 
 **Current status:**
 - V1 implementation is complete through Phase 4 (tests/smoke).
-- **Independent verification completed:** `testing_agent_v3` confirmed repo structure, CLI commands, reporting, no label leakage, Pine structure/safety, schema/mapping support, VWAP reset behavior, absorption features, forward labels, baselines, and fold metrics. No issues reported. Test report: `/app/test_reports/iteration_1.json`.
-- Synthetic data remains **smoke-only** and correctly returns `INSUFFICIENT_DATA` / `NO_STABLE_PLATEAU` (no performance claims).
-- Remaining work is **real-data validation** once futures CSVs are provided, starting with **MNQ**.
+- **Independent verification (V1 core) completed:** `testing_agent_v3` passed repo structure, CLI commands, reporting, no label leakage, Pine structure/safety. Report: `/app/test_reports/iteration_1.json`.
+- **Real-data MNQ run completed (5-min RTH, 6 years):**
+  - Data: `/app/problem_0004_absorption_vwap/data/raw/MNQ_5min_RTH_6year.csv`
+  - Config: `/app/problem_0004_absorption_vwap/configs/mnq_5min_rth.yaml`
+  - Results (default parameters): **NOT_VALIDATED** due to negative after-cost expectancy and profit factor below strong threshold, despite hit-rate lift.
+  - Independent verification of MNQ outputs: `/app/test_reports/iteration_2.json`.
+- Synthetic data remains **smoke-only** and is not used for performance claims.
 
 ## 2. Implementation Steps
 
@@ -94,8 +98,7 @@ Delivered:
 - Plateau search (`plateau.py`):
   - Grid from `configs/grid.yaml`.
   - Stable-neighborhood rejection via neighbor-count criterion.
-  - Performance optimized by caching heavy feature computations and re-evaluating threshold parameters cheaply.
-  - Synthetic run correctly yields `NO_STABLE_PLATEAU`.
+  - Performance optimizations to handle larger real datasets without changing strategy rules.
 
 ### Phase 3 — Pine v6 module (conservative, confirmed bars, warnings) ✅ Completed
 User stories:
@@ -134,33 +137,58 @@ Delivered:
   - `pytest -q`: 11 passed.
   - Independent `testing_agent_v3` verification: pass (no issues). Report: `/app/test_reports/iteration_1.json`.
 
+### Phase 5 — Real-data MNQ Validation (5-min RTH, 6 years) ✅ Completed
+User stories:
+1. Load real MNQ futures data via configurable mapping and timezone-aware session inference.
+2. Run validate/backtest/plateau/report with no strategy logic changes.
+3. Produce an honest verdict against gates and baselines after costs.
+
+Delivered / executed:
+- Data placed under:
+  - `data/raw/MNQ_5min_RTH_6year.csv`
+- MNQ-specific config created:
+  - `configs/mnq_5min_rth.yaml` mapping `ts_event` + `America/New_York` timezone + timeframe `5m`.
+- Importer robustness fixes (no strategy change):
+  - Mixed timezone offsets parsed with `utc=True` normalization.
+  - Missing symbols filled with `default_symbol`.
+- Performance optimizations (no strategy change):
+  - Rolling volume percentile implemented with an incremental sorted-window method.
+  - Plateau search optimized to avoid full revalidation per grid point; added fast metric computation.
+- Commands run successfully:
+  - `python -m research_engine validate --data data/raw/MNQ_5min_RTH_6year.csv --config configs/mnq_5min_rth.yaml`
+  - `python -m research_engine backtest --data data/raw/MNQ_5min_RTH_6year.csv --config configs/mnq_5min_rth.yaml`
+  - `python -m research_engine plateau --data data/raw/MNQ_5min_RTH_6year.csv --grid configs/grid.yaml --config configs/mnq_5min_rth.yaml`
+  - `python -m research_engine report --run latest`
+  - `pytest -q`
+- Independent verification of MNQ outputs:
+  - `/app/test_reports/iteration_2.json`
+
+Outcome summary (default config; honest failure reporting):
+- Strategy verdict: `NOT_VALIDATED` (fails after-cost expectancy and PF gate; fold inconsistency).
+- Plateau search: stable regions exist **in-sample** (does not validate default strategy).
+
 ## 3. Next Actions
-1. **Real-data validation (next required step; synthetic is smoke-only):**
-   - Place MNQ 1m/5m CSV under `data/raw/`.
-   - Create a mapping config (or edit `configs/default_config.yaml`) matching the CSV columns:
-     - either `timestamp/open/high/low/close/volume/symbol`,
-     - or `ts_event/symbol/open/high/low/close/volume`,
-     - or explicit `date` + `time` mapping.
-   - Confirm and set `session.timezone` and (if needed later) session rules for RTH vs UTC.
-   - Run:
-     - `python -m research_engine validate --data data/raw/<MNQ.csv> --config configs/default_config.yaml`
-     - `python -m research_engine plateau --data data/raw/<MNQ.csv> --grid configs/grid.yaml --config configs/default_config.yaml`
-   - Review:
-     - baseline comparisons,
-     - fold consistency,
-     - costs sensitivity,
-     - plateau stability.
-   - If MNQ fails gates: mark `REJECTED`/`NOT_VALIDATED`/`INSUFFICIENT_DATA` honestly; keep any useful warning/filter behaviors.
+1. **MNQ failure analysis (research only; no forced optimization):**
+   - Inspect `trades.csv` and `labels.csv` for where losses occur (time-of-day buckets already computed).
+   - Quantify cost sensitivity (slippage/commission scenarios) to determine whether edge is too thin.
+   - Check whether near-VWAP classification threshold materially impacts event quality (do not change default without re-validation discipline).
 
-2. **Cross-instrument replication (after MNQ):**
+2. **Cross-instrument replication (next):**
    - Run the same pipeline on RTY, MYM, MCL, M2K, ES, MES, MGC if available.
-   - Produce an aggregated cross-instrument summary (from per-run reports) to assess generalization.
+   - Produce a cross-instrument summary to test generalization; a single-instrument lift is insufficient.
 
-3. **(Optional after real-data validation) Session enhancements:**
-   - Add RTH session windows and/or futures session IDs (kept out of V1 core; hooks exist via YAML).
+3. **Follow-up hypothesis testing (optional; research discipline):**
+   - Evaluate whether absorption proxy works better:
+     - only in specific volatility regimes,
+     - only in specific time buckets (e.g., midday vs open/close),
+     - with additional non-lookahead filters (spread proxy, range compression vs ATR, etc.).
+   - Any new filter must be treated as a new hypothesis and re-run with walk-forward + baselines.
 
-4. **(Later) UI work only after real-data validation succeeds:**
-   - Add a UI only once importer + real data validation is stable.
+4. **(Optional after multi-instrument evidence) Session enhancements:**
+   - Add explicit RTH session window filtering (currently timezone/date-based; config fields exist).
+
+5. **(Later) UI work only after real-data validation succeeds:**
+   - Add a UI only once importer + multi-instrument real-data validation is stable.
 
 ## 4. Success Criteria
 - Repository exists at `/app/problem_0004_absorption_vwap/` and all commands work:
@@ -176,4 +204,18 @@ Delivered:
 - Plateau search rejects isolated spikes and can identify stable neighborhoods when they exist.
 - Reports emitted as JSON+MD+CSV (+HTML when enabled), and cross-instrument support works.
 - Pine v6 module mirrors Python logic as closely as feasible, uses confirmed-bar logic, and documents limitations clearly.
-- **Final readiness gate for claiming validation:** must satisfy user-defined strong validation gates on real data (≥100 events, ≥20/fold, ≥4pp lift, positive after-cost expectancy, PF≥1.15, fold consistency, plateau support).
+- **Final readiness gate for claiming validation:** must satisfy user-defined strong validation gates on real data (≥100 events, ≥20/fold, ≥4pp lift, positive after-cost expectancy, PF≥1.15, fold consistency, plateau support), and replicate across additional instruments.
+
+## 5. MNQ Real-Data Run Artifacts (for traceability)
+- Data:
+  - `/app/problem_0004_absorption_vwap/data/raw/MNQ_5min_RTH_6year.csv`
+- Config:
+  - `/app/problem_0004_absorption_vwap/configs/mnq_5min_rth.yaml`
+- Validate report:
+  - `/app/problem_0004_absorption_vwap/reports/walk_forward/validate_20260520_141142/`
+- Backtest report:
+  - `/app/problem_0004_absorption_vwap/reports/walk_forward/backtest_20260520_141308/`
+- Plateau report:
+  - `/app/problem_0004_absorption_vwap/reports/parameter_plateaus/plateau_20260520_141004/`
+- Independent test report:
+  - `/app/test_reports/iteration_2.json`
