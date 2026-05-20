@@ -10,6 +10,20 @@ All candidates were selected/frozen using training windows only, then evaluated 
 | MCL | train_plateau_07 / target_or_horizon | 153 | 66.67% | 30.07% | 36.60 | -0.09 | 0.994 | -357.86 | 14/26 (53.8%) | n/a | NOT_VALIDATED |
 | MGC | default_above_vwap_shorts_only / fixed_horizon | 138 | 50.72% | 47.83% | 2.90 | 18.19 | 1.494 | -879.00 | 16/26 (61.5%) | 45.2% | NOT_VALIDATED |
 
+
+## Repositioned Use Case: VWAP Absorption Reversion Warning Module
+
+Problem 0004 is recorded as **NOT_VALIDATED** as a standalone strategy across strict cross-instrument holdout testing. Standalone entries did not pass the hard gates, but directional structure exists in multiple instruments. MYM and MGC are the strongest weak candidates, while still failing at least one required validation gate.
+
+The appropriate use is a warning/filter/candidate generator:
+
+1. Detect high-volume + low-displacement bars consistent with possible absorption.
+2. Classify above / below / near VWAP.
+3. Treat above-VWAP shorts and below-VWAP longs separately.
+4. Use warnings as research context only, not live trading instructions.
+
+No live trading recommendation is made.
+
 ## Report directories
 - RTY: `reports/holdout/holdout_20260520_151731/`
 - MYM: `reports/holdout/holdout_20260520_152057/`

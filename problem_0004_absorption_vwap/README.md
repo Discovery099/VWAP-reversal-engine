@@ -50,4 +50,18 @@ A signal cannot be `VALIDATED_STRONG` unless it has at least:
 
 ## Pine
 
-`pine/problem_0004_absorption_vwap_v1.pine` is a conservative Pine v6-compatible warning/paper-strategy module. It uses confirmed-bar logic and does not use future labels.
+`pine/problem_0004_absorption_vwap_v1.pine` is a conservative Pine v6-compatible warning/filter module with optional paper strategy mode disabled by default. It uses confirmed-bar logic and does not use future labels.
+
+The default Pine use case is now **VWAP Absorption Reversion Warning Module**, not standalone entries. It exposes:
+
+- `absorptionWarning`
+- `aboveVwapAbsorption`
+- `belowVwapAbsorption`
+- `nearVwapAbsorption`
+- `vwapReversionCandidate`
+
+## Final status
+
+Problem 0004 is **NOT_VALIDATED** as a standalone strategy across strict cross-instrument holdout testing. See `FINAL_REPORT.md` and `reports/holdout/cross_instrument_20260520_152935/`.
+
+Repositioned use case: research-only VWAP absorption reversion warning/filter module. No live trading recommendation is made.

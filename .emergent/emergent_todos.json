@@ -1,18 +1,18 @@
 [
   {
-    "content": "Download RTY/MYM/ES/MCL/MGC raw files and create per-symbol configs",
+    "content": "Add final NOT_VALIDATED repositioned-use-case report section",
     "status": "completed"
   },
   {
-    "content": "Run strict holdout protocol for RTY, MYM, ES, MCL, MGC",
+    "content": "Update Pine v6 warning/filter script mode booleans and defaults",
     "status": "completed"
   },
   {
-    "content": "Build cross-instrument holdout summary table and verdicts",
-    "status": "completed"
+    "content": "Run tests/lint and independent verification",
+    "status": "in_progress"
   },
   {
-    "content": "Run tests/lint and provide concise cross-instrument result",
-    "status": "completed"
+    "content": "Package final repository zip",
+    "status": "pending"
   }
 ]
