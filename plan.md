@@ -1,24 +1,28 @@
-# plan.md — Post-Absorption VWAP Reversal Engine (V1) — Updated
+# plan.md — Post-Absorption VWAP Reversal Engine (V1) — Updated (Post Verification)
 
 ## 1. Objectives
 - Build a **research-first** Pine + Python engine under `/app/problem_0004_absorption_vwap/` to test the hypothesis: **high volume + low displacement ⇒ possible absorption proxy**, interpreted via **session VWAP context**.
 - Deliver a **reproducible CLI workflow** that:
-  - imports raw futures CSVs with **configurable column mapping** (incl. `timestamp` vs `ts_event`, and `date+time` combination) from `data/raw/` later,
+  - imports raw futures CSVs with **configurable column mapping** (incl. `timestamp` vs `ts_event`, and `date+time` combination),
   - computes **session VWAP** (reset by configurable session inference; default calendar date in timestamp timezone),
   - detects **absorption proxy** events (high volume percentile + low displacement/ATR),
   - classifies **above/below/near VWAP** context,
-  - generates **forward-only labels** for evaluation (no lookahead),
+  - generates **forward-only labels** for evaluation (**no lookahead**),
   - runs **walk-forward validation** with event-count gates,
   - compares against **baselines after costs**,
   - runs **sensitivity + parameter plateau search** with stable-neighborhood rejection,
-  - outputs **JSON + Markdown + CSV** reports (+ HTML when enabled) with cross-instrument support.
+  - outputs **JSON + Markdown + CSV** reports (+ HTML when enabled), including cross-instrument support.
 - Enforce validation discipline:
   - **no lookahead**, labels used **only** for evaluation,
   - no repainting claims in Pine; **confirmed-bar only**,
   - no forced optimization, no live trading recommendation,
   - honest verdicts: `VALIDATED_STRONG / VALIDATED_WEAK / NOT_VALIDATED / REJECTED / INSUFFICIENT_DATA`.
 
-**Current status:** Implementation is complete through Phase 4 (tests/smoke). Synthetic data is used only for smoke/schema checks and correctly yields `INSUFFICIENT_DATA` and `NO_STABLE_PLATEAU`. Remaining work is independent end-to-end validation with `testing_agent_v3`, followed by real-data validation (starting MNQ) once data is provided.
+**Current status:**
+- V1 implementation is complete through Phase 4 (tests/smoke).
+- **Independent verification completed:** `testing_agent_v3` confirmed repo structure, CLI commands, reporting, no label leakage, Pine structure/safety, schema/mapping support, VWAP reset behavior, absorption features, forward labels, baselines, and fold metrics. No issues reported. Test report: `/app/test_reports/iteration_1.json`.
+- Synthetic data remains **smoke-only** and correctly returns `INSUFFICIENT_DATA` / `NO_STABLE_PLATEAU` (no performance claims).
+- Remaining work is **real-data validation** once futures CSVs are provided, starting with **MNQ**.
 
 ## 2. Implementation Steps
 
@@ -41,7 +45,7 @@ Delivered in repo `/app/problem_0004_absorption_vwap/`:
 - CSV importer (configurable mapping):
   - Supports `timestamp` or `ts_event`.
   - Supports combining separate `date` + `time` via explicit mapping.
-  - Supports missing symbol/timeframe via defaults.
+  - Supports missing `symbol/timeframe` via defaults.
 - Session inference:
   - Default: `session_date = calendar date in timestamp timezone`.
   - Timezone configurable via YAML.
@@ -58,7 +62,7 @@ Delivered in repo `/app/problem_0004_absorption_vwap/`:
   - Costs-aware thresholding for label “movement vs noise”.
 - POC runner:
   - `python -m research_engine validate --data data/examples/synthetic_ohlcv_1m.csv --config configs/default_config.yaml`
-  - Smoke run on synthetic data succeeds and honestly returns `INSUFFICIENT_DATA` (synthetic is smoke-only).
+  - Smoke run on synthetic data succeeds and honestly returns `INSUFFICIENT_DATA`.
 
 ### Phase 2 — V1 Research Pipeline (validation, baselines, reporting, plateau search) ✅ Completed
 User stories:
@@ -80,11 +84,10 @@ Delivered:
   - Random direction on absorption bars (seeded).
 - Walk-forward:
   - Fold metrics table emitted (time-ordered chunking).
-  - Validation gates:
-    - `>=100` events overall and `>=20` per fold, else `INSUFFICIENT_DATA`.
+  - Validation gates: `>=100` events overall and `>=20` per fold, else `INSUFFICIENT_DATA`.
 - Verdict logic:
   - Lift threshold vs best baseline, after-cost expectancy, profit factor threshold, fold consistency checks.
-  - Includes explicit “plateau support required” reason when not supplied.
+  - Explicit “plateau support required” reason when plateau support is not present.
 - Reporting (`reports.py`):
   - Per-run directory with `summary.json`, `summary.md`, `trades.csv`, `labels.csv`, `features.csv`, `fold_metrics.csv`, `baseline_compare.csv`, optional `report.html`.
   - `report --run latest` prints the latest report summary.
@@ -111,7 +114,7 @@ Delivered:
   - Clear limitations and manual QA notes.
 - Manual checklist: `tests/test_pine_checklist.md`.
 
-### Phase 4 — Tests + smoke validation ✅ Completed
+### Phase 4 — Tests + smoke validation ✅ Completed (and independently verified)
 User stories:
 1. Run `pytest` and confirm VWAP resets and labels are correct.
 2. Detect schema violations early.
@@ -127,26 +130,37 @@ Delivered:
   - VWAP location classification.
   - Forward-only label behavior.
   - Validation verdict gates and plateau isolation rejection.
-- Local results:
-  - `pytest -q`: 11 passed (one expected zero-volume warning).
-  - Lint: passes.
+- Results:
+  - `pytest -q`: 11 passed.
+  - Independent `testing_agent_v3` verification: pass (no issues). Report: `/app/test_reports/iteration_1.json`.
 
 ## 3. Next Actions
-1. **Independent end-to-end validation (required next):**
-   - Run `testing_agent_v3` against the repo.
-   - Fix any issues found (CLI ergonomics, schema corner cases, report outputs, fold logic, leakage risks).
-2. **Real-data validation (after you provide data):**
-   - Import MNQ 1m/5m CSV under `data/raw/` using a mapping config.
-   - Confirm timestamp timezone/session assumptions; adjust YAML session settings as needed.
+1. **Real-data validation (next required step; synthetic is smoke-only):**
+   - Place MNQ 1m/5m CSV under `data/raw/`.
+   - Create a mapping config (or edit `configs/default_config.yaml`) matching the CSV columns:
+     - either `timestamp/open/high/low/close/volume/symbol`,
+     - or `ts_event/symbol/open/high/low/close/volume`,
+     - or explicit `date` + `time` mapping.
+   - Confirm and set `session.timezone` and (if needed later) session rules for RTH vs UTC.
    - Run:
-     - `validate` (primary) + review baseline comparisons and fold consistency.
-     - `plateau` to look for stable regions (not isolated peaks).
-   - If MNQ fails gates, preserve useful warning/filter behavior and mark as `REJECTED/NOT_VALIDATED` as appropriate.
-3. **Cross-instrument replication (if data available):**
-   - Apply same pipeline to RTY, MYM, MCL, M2K, ES, MES, MGC.
-   - Produce combined summaries to assess generalization.
-4. **(Later, after validation) Enhance session config:**
-   - Optional RTH session windows / futures session IDs (kept out of V1 core, but config hooks exist).
+     - `python -m research_engine validate --data data/raw/<MNQ.csv> --config configs/default_config.yaml`
+     - `python -m research_engine plateau --data data/raw/<MNQ.csv> --grid configs/grid.yaml --config configs/default_config.yaml`
+   - Review:
+     - baseline comparisons,
+     - fold consistency,
+     - costs sensitivity,
+     - plateau stability.
+   - If MNQ fails gates: mark `REJECTED`/`NOT_VALIDATED`/`INSUFFICIENT_DATA` honestly; keep any useful warning/filter behaviors.
+
+2. **Cross-instrument replication (after MNQ):**
+   - Run the same pipeline on RTY, MYM, MCL, M2K, ES, MES, MGC if available.
+   - Produce an aggregated cross-instrument summary (from per-run reports) to assess generalization.
+
+3. **(Optional after real-data validation) Session enhancements:**
+   - Add RTH session windows and/or futures session IDs (kept out of V1 core; hooks exist via YAML).
+
+4. **(Later) UI work only after real-data validation succeeds:**
+   - Add a UI only once importer + real data validation is stable.
 
 ## 4. Success Criteria
 - Repository exists at `/app/problem_0004_absorption_vwap/` and all commands work:
@@ -154,7 +168,7 @@ Delivered:
   - `python -m research_engine backtest --data ... --config ...`
   - `python -m research_engine plateau --data ... --grid ... --config ...`
   - `python -m research_engine report --run latest`
-- Importer supports the expected raw CSV variants with configurable column mapping (incl. `ts_event`, `timestamp`, and date+time). Canonical schema enforced.
+- Importer supports expected raw CSV variants with configurable column mapping (incl. `ts_event`, `timestamp`, and date+time). Canonical schema enforced.
 - Session VWAP correct with configurable session inference and correct resets.
 - Absorption proxy detection + VWAP context classification reproducible and non-repainting.
 - Labels are forward-only and isolated from feature generation.
