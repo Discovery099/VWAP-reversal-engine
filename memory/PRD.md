@@ -7,21 +7,25 @@ Research-first Pine + Python engine under `/app/problem_0004_absorption_vwap/`. 
 - Configurable CSV importer for raw futures data variants (`timestamp`, `ts_event`, date+time combine).
 - Session VWAP, ATR, volume percentile, displacement/ATR, VWAP-relative location, absorption proxy detector.
 - Forward-only labels for validation only.
-- Event-based paper/backtest diagnostics, baselines, walk-forward validation, plateau search, diagnostics, strict holdout confirmation, and reports.
+- Event-based paper/backtest diagnostics, baselines, walk-forward validation, plateau search, diagnostics, strict holdout confirmation, cross-instrument summaries, and reports.
 - Pine v6-compatible warning/paper module with confirmed-bar logic and manual QA notes.
 
-## Real MNQ Validation / Diagnostics / Holdout
+## Real MNQ Status
 - Data: `/app/problem_0004_absorption_vwap/data/raw/MNQ_5min_RTH_6year.csv`
-- Config: `/app/problem_0004_absorption_vwap/configs/mnq_5min_rth.yaml`
-- Default full-sample verdict: `NOT_VALIDATED` due to negative after-cost expectancy and PF < 1.15.
-- Diagnostics report: `/app/problem_0004_absorption_vwap/reports/diagnostics/diagnostic_20260520_143421/`
+- Default full-sample verdict: `NOT_VALIDATED`.
 - Strict train/holdout report: `/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_150013/`
+- Final MNQ status: `NOT_VALIDATED`; preserve as filter/exit research candidate only.
 
-## Strict Holdout Result
-- Training/selection: 2020-01-02 to 2023-12-29 (79,233 bars).
-- Holdout: 2024-01-02 to 2026-03-06 (43,062 bars).
-- Frozen candidates: 8 predefined diagnostic filters + 10 training-selected plateau candidates.
-- Final holdout verdict: `NOT_VALIDATED`.
-- Reason: no frozen training-selected candidate passed all hard gates.
-- Best-looking holdout row: `default_above_vwap_shorts_only` with `fixed_horizon` exit had expectancy +43.31 and PF 1.606, but failed hard gates due only 81 trades and negative lift vs same-universe baseline.
-- Preserve MNQ as filter/exit research candidate only; no validation or trading recommendation.
+## Cross-Instrument Holdout Status
+- Symbols tested: RTY, MYM, ES, MCL, MGC.
+- Split: train/selection 2020-01-02 to 2023-12-31; holdout 2024-01-01 to 2026-03-06.
+- Reports:
+  - RTY: `/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_151731/`
+  - MYM: `/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_152057/`
+  - ES: `/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_152416/`
+  - MCL: `/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_152618/`
+  - MGC: `/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_152912/`
+  - Cross summary: `/app/problem_0004_absorption_vwap/reports/holdout/cross_instrument_20260520_152935/`
+- All five additional symbols are `NOT_VALIDATED`; zero candidates passed all hard gates.
+- Notable near-misses: MYM below-VWAP longs fixed-horizon positive but concentration >50%; MGC above-VWAP shorts positive but lift insufficient for fixed horizon and training support not enough for validation.
+- Testing: independent report `/app/test_reports/iteration_5.json`; pytest 14 passed; lint passed.
