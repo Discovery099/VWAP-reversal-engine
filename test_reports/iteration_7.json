@@ -1,0 +1,63 @@
+{
+  "summary": "Completed comprehensive backend testing of recent-regime analysis feature. All 30 backend tests passed successfully. Verified CLI command, output files, data accuracy, label distribution, and compliance with requirements.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "CLI command 'python -m research_engine recent-regime' executes successfully",
+    "All 4 output files exist: recent_regime_all_results.csv, recent_regime_summary.csv, recent_regime_summary.md, recent_regime_summary.html",
+    "reports/latest.html exists and correctly links to recent_regime_summary.html",
+    "all_results.csv contains exactly 36 rows (9 symbols × 4 windows)",
+    "Available symbols (MNQ, RTY, MYM, ES, MCL, MGC) have data loaded correctly",
+    "Unavailable symbols (MES, M2K, GC) properly marked as 'not available'",
+    "Label distribution: 26 INSUFFICIENT_RECENT_DATA, 10 WARNING_ONLY (exact match)",
+    "No RECENT_REGIME_ACTIVE labels (0 found, as expected)",
+    "No RECENT_REGIME_WEAK labels (0 found, as expected)",
+    "No RECENT_REGIME_INACTIVE labels (0 found, as expected)",
+    "MNQ/RTY/MYM/ES have only 12-month WARNING_ONLY windows (verified)",
+    "MCL/MGC have 3/6/12-month WARNING_ONLY windows (verified)",
+    "All 1-month windows marked as INSUFFICIENT_RECENT_DATA (9/9 symbols)",
+    "Global verdict NOT_VALIDATED maintained in all reports",
+    "No validation language added to recent-regime analysis",
+    "No VALIDATED labels in recent-regime results",
+    "Pytest passes with all 17 tests",
+    "Python lint passes for recent_regime.py",
+    "Python lint passes for test_recent_regime.py",
+    "No broker files found (verified no live trading)",
+    "No webhook files found (verified no live execution)",
+    "No trading files found (verified no auto-trading)",
+    "No dashboard files found (verified no UI)",
+    "No live_execution files found (verified no live execution)",
+    "HTML output properly formatted with escaped characters",
+    "Markdown output contains correct summary tables",
+    "CSV files contain all expected columns and data types",
+    "Summary CSV correctly aggregates results by symbol",
+    "Agent-to-agent context note data verified (100% match)",
+    "Recent-regime analysis isolated from global validation logic",
+    "All windows anchored to symbol-specific latest timestamps"
+  ],
+  "test_report_links": [
+    "/app/problem_0004_absorption_vwap/tests/backend_test.py",
+    "/app/problem_0004_absorption_vwap/reports/recent_regime/recent_regime_all_results.csv",
+    "/app/problem_0004_absorption_vwap/reports/recent_regime/recent_regime_summary.csv",
+    "/app/problem_0004_absorption_vwap/reports/recent_regime/recent_regime_summary.md",
+    "/app/problem_0004_absorption_vwap/reports/recent_regime/recent_regime_summary.html",
+    "/app/problem_0004_absorption_vwap/reports/latest.html"
+  ],
+  "action_item_for_main_agent": "",
+  "updated_files": [
+    "/app/problem_0004_absorption_vwap/tests/backend_test.py"
+  ],
+  "success_percentage": {
+    "backend": "100% (30/30 tests passed)",
+    "frontend": "N/A (backend-only testing as requested)"
+  },
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_test_itself": false
+}

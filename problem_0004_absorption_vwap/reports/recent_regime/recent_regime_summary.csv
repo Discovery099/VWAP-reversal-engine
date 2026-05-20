@@ -1,0 +1,10 @@
+symbol,available,active_windows,weak_windows,warning_only_windows,inactive_windows,insufficient_windows,best_window,best_recent_label,best_expectancy_after_cost,best_profit_factor,recommended_recent_posture
+MNQ,True,0,0,1,0,3,12_month,WARNING_ONLY,-23.929858282869624,0.7046968270445132,warning/filter only
+RTY,True,0,0,1,0,3,12_month,WARNING_ONLY,-51.033233737404046,0.6648883009908514,warning/filter only
+MYM,True,0,0,1,0,3,12_month,WARNING_ONLY,-8.636755207143684,0.6787733151027261,warning/filter only
+ES,True,0,0,1,0,3,12_month,WARNING_ONLY,-94.1992428841226,0.7828717381167095,warning/filter only
+MES,False,0,0,0,0,4,,NOT_AVAILABLE,,,not available
+MCL,True,0,0,3,0,1,12_month,WARNING_ONLY,-2.9525695570720476,0.7946888718592285,warning/filter only
+M2K,False,0,0,0,0,4,,NOT_AVAILABLE,,,not available
+MGC,True,0,0,3,0,1,12_month,WARNING_ONLY,-3.419907043479337,0.9337530249494697,warning/filter only
+GC,False,0,0,0,0,4,,NOT_AVAILABLE,,,not available

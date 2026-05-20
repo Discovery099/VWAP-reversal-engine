@@ -9,6 +9,7 @@ from .data_loader import load_dataset, save_processed
 from .diagnostics import run_diagnostics, write_diagnostic_report
 from .holdout import run_holdout_confirmation, write_holdout_report
 from .plateau import load_grid, run_plateau
+from .recent_regime import run_recent_regime_analysis, write_recent_regime_reports
 from .reports import latest_run_path, write_plateau_report, write_validation_report
 from .schemas import load_yaml
 from .validation import run_validation
@@ -90,6 +91,17 @@ def cmd_holdout(args) -> int:
     return 0
 
 
+def cmd_recent_regime(args) -> int:
+    result = run_recent_regime_analysis(Path("."), symbols=args.symbols)
+    out_dir = write_recent_regime_reports(result, Path("."))
+    labels = result["all_results"]["recent_regime_label"].value_counts().to_dict()
+    print(f"run_dir={out_dir}")
+    for label, count in labels.items():
+        print(f"{label}={count}")
+    return 0
+
+
+
 def cmd_report(args) -> int:
     if args.run == "latest":
         run_dir = latest_run_path("reports")
@@ -132,6 +144,11 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--config", default="configs/default_config.yaml")
     validate.add_argument("--save-processed", default=None)
     validate.set_defaults(func=cmd_validate)
+
+    recent = sub.add_parser("recent-regime", help="Run recent-regime activity analysis without changing validation verdict")
+    recent.add_argument("--symbols", nargs="*", default=None)
+    recent.set_defaults(func=cmd_recent_regime)
+
 
     backtest = sub.add_parser("backtest", help="Run event-based paper/backtest diagnostics")
     backtest.add_argument("--data", required=True)
