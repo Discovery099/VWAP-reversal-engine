@@ -1,0 +1,39 @@
+{
+  "summary": "Completed verification of cross-instrument strict holdout protocol for RTY, MYM, ES, MCL, MGC. All 5 symbols correctly show NOT_VALIDATED verdict with zero candidates passing all holdout hard gates. Training period 2020-01-02 to 2023-12-31, holdout period 2024-01-01 to 2026-03-06. Verified raw data files, per-symbol configs with ts_event mapping and correct RTH session windows, individual holdout reports, cross-instrument summary report, and confirmed no live execution or broker integration was added.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Raw data files exist for all 5 symbols (RTY, MYM, ES, MCL, MGC)",
+    "Per-symbol configs exist with ts_event mapping and correct RTH session windows (RTY/MYM/ES: 09:30-16:00, MCL: 09:00-14:30, MGC: 08:20-13:30)",
+    "Holdout reports exist with correct timestamps (RTY: 151731, MYM: 152057, ES: 152416, MCL: 152618, MGC: 152912)",
+    "All 5 symbols show NOT_VALIDATED final verdict with zero pass count",
+    "Cross-instrument report exists at cross_instrument_20260520_152935 with all-candidates CSV, best-summary CSV, and Markdown summary",
+    "Best-summary rows match expected values: RTY default_above_vwap_shorts_only/fixed_horizon 85 trades exp 43.94 PF 1.196; MYM default_below_vwap_longs_only/fixed_horizon 103 trades exp 9.65 PF 1.359 concentration 51.26%; ES train_plateau_05/target_or_horizon 57 trades exp 121.22; MCL train_plateau_07/target_or_horizon 153 trades exp -0.086; MGC default_above_vwap_shorts_only/fixed_horizon 138 trades exp 18.19 PF 1.494 lift 2.90",
+    "Pytest passes with 14 tests (14 passed, 2 warnings)",
+    "Python lint passes with no errors (fixed 2 minor f-string issues)",
+    "No live execution, broker integration, webhook execution, or trading recommendation code added",
+    "Diagnostic session bucket logic correctly uses configured RTH start/end for MCL/MGC last-30m filters"
+  ],
+  "test_report_links": [
+    "/app/problem_0004_absorption_vwap/backend_test_cross_instrument.py"
+  ],
+  "success_percentage": {
+    "backend": "100%",
+    "frontend": "N/A (backend-only testing)"
+  },
+  "action_item_for_main_agent": "",
+  "updated_files": [
+    "/app/problem_0004_absorption_vwap/backend_test.py",
+    "/app/problem_0004_absorption_vwap/backend_test_diagnostics.py",
+    "/app/problem_0004_absorption_vwap/backend_test_cross_instrument.py"
+  ],
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "false"
+}

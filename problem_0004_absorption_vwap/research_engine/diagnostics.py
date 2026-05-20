@@ -43,22 +43,34 @@ def _group_end_positions(df: pd.DataFrame) -> np.ndarray:
     return group_end
 
 
-def _session_bucket(ts: pd.Timestamp) -> str:
+def _time_to_minutes(value: str | None, fallback: int) -> int:
+    if not value:
+        return fallback
+    hour, minute = str(value).split(":")[:2]
+    return int(hour) * 60 + int(minute)
+
+
+def _session_bucket(ts: pd.Timestamp, cfg: Dict[str, Any] | None = None) -> str:
     minutes = ts.hour * 60 + ts.minute
-    if minutes < 10 * 60:
+    session_cfg = (cfg or {}).get("session", {})
+    start = _time_to_minutes(session_cfg.get("rth_start"), 9 * 60 + 30)
+    end = _time_to_minutes(session_cfg.get("rth_end"), 16 * 60)
+    if minutes < start + 30:
         return "first_30m"
-    if minutes < 11 * 60 + 30:
+    if minutes >= end - 30:
+        return "last_30m"
+    span = max(end - start - 60, 1)
+    elapsed = max(minutes - (start + 30), 0)
+    if elapsed < span / 3:
         return "morning"
-    if minutes < 13 * 60 + 30:
+    if elapsed < 2 * span / 3:
         return "midday"
-    if minutes < 15 * 60 + 30:
-        return "afternoon"
-    return "last_30m"
+    return "afternoon"
 
 
-def _add_diagnostic_buckets(features: pd.DataFrame) -> pd.DataFrame:
+def _add_diagnostic_buckets(features: pd.DataFrame, cfg: Dict[str, Any] | None = None) -> pd.DataFrame:
     out = features.copy()
-    out["session_bucket"] = out["timestamp"].apply(_session_bucket)
+    out["session_bucket"] = out["timestamp"].apply(lambda ts: _session_bucket(ts, cfg))
     out["volume_percentile_band"] = pd.cut(
         out["volume_percentile"],
         bins=[0, 95, 97.5, 99, 100.000001],
@@ -411,7 +423,7 @@ def _plateau_diagnostics(features: pd.DataFrame, cfg: Dict[str, Any], grid_path:
         cache_key = (params["volume_lookback"], params["atr_length"])
         if cache_key not in feature_cache:
             feature_cache[cache_key] = compute_absorption_features(features[["timestamp", "open", "high", "low", "close", "volume", "symbol", "timeframe", "session_date"]], deep_merge(cfg, {"features": params}))
-            feature_cache[cache_key] = _add_diagnostic_buckets(feature_cache[cache_key].sort_values(["symbol", "timestamp"]).reset_index(drop=True))
+            feature_cache[cache_key] = _add_diagnostic_buckets(feature_cache[cache_key].sort_values(["symbol", "timestamp"]).reset_index(drop=True), cfg)
         cand_features = feature_cache[cache_key].copy()
         cand_features["location_vs_vwap"] = _location_for_threshold(cand_features["vwap_distance_atr"], float(params["near_vwap_threshold_atr"]))
         mask = (
@@ -502,7 +514,7 @@ def _classification(default_metrics: Dict[str, Any], plateau_diag: Dict[str, Any
 def run_diagnostics(df: pd.DataFrame, cfg: Dict[str, Any], grid_path: str | Path, plateau_dir: str | Path | None = None) -> Dict[str, Any]:
     folds = int(cfg.get("validation", {}).get("folds", 5))
     features = compute_absorption_features(df, cfg).sort_values(["symbol", "timestamp"]).reset_index(drop=True)
-    features = _add_diagnostic_buckets(features)
+    features = _add_diagnostic_buckets(features, cfg)
     absorption_mask = features["is_absorption_bar"].fillna(False)
     directional_mask = absorption_mask & features["location_vs_vwap"].isin(["above_vwap", "below_vwap"])
     default_trades = build_diagnostic_trades(features, cfg, directional_mask, mode="fade")

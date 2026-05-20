@@ -105,7 +105,7 @@ def _features_for_params(raw_df: pd.DataFrame, cfg: Dict[str, Any], params: Dict
     cache_key = (int(params["volume_lookback"]), int(params["atr_length"]))
     if cache_key not in cache:
         cache[cache_key] = compute_absorption_features(_base_features(raw_df), deep_merge(cfg, {"features": params}))
-        cache[cache_key] = _add_diagnostic_buckets(cache[cache_key].sort_values(["symbol", "timestamp"]).reset_index(drop=True))
+        cache[cache_key] = _add_diagnostic_buckets(cache[cache_key].sort_values(["symbol", "timestamp"]).reset_index(drop=True), cfg)
     features = cache[cache_key].copy()
     features["location_vs_vwap"] = _location_for_threshold(features["vwap_distance_atr"], float(params["near_vwap_threshold_atr"]))
     features["abs_vwap_distance_atr"] = features["vwap_distance_atr"].abs()

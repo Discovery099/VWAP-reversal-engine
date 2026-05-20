@@ -1,0 +1,60 @@
+column_mapping:
+  timestamp: ts_event
+  date: null
+  time: null
+  open: open
+  high: high
+  low: low
+  close: close
+  volume: volume
+  symbol: symbol
+  timeframe: null
+  session_date: null
+
+default_symbol: ES.v.0
+default_timeframe: 5m
+source_type: real_market_data
+
+session:
+  mode: calendar_date
+  timezone: America/New_York
+  rth_start: "09:30"
+  rth_end: "16:00"
+
+zero_volume_policy: carry_forward
+
+features:
+  volume_lookback: 100
+  high_volume_percentile_threshold: 95
+  atr_length: 60
+  max_displacement_atr: 0.3
+  near_vwap_threshold_atr: 0.25
+  min_vwap_distance_atr: 0.0
+  reversal_horizon_bars: 15
+  volume_percentile_min_periods: 20
+
+validation:
+  folds: 5
+  min_events_for_full_validation: 100
+  min_events_per_fold: 20
+  min_hit_rate_lift_pp: 4.0
+  min_profit_factor_strong: 1.15
+  max_single_fold_profit_share: 0.50
+  random_seed: 7
+
+costs:
+  commission_per_trade: 0.0
+  spread: 0.0
+  slippage_ticks: 1.0
+  tick_size: 0.25
+  point_value: 50.0
+
+backtest:
+  include_near_vwap: false
+  stop_atr_multiple: null
+  target: vwap
+  time_stop_bars: 15
+
+reports:
+  output_dir: reports/walk_forward
+  write_html: true

@@ -1,10 +1,18 @@
 [
   {
-    "content": "Run tests/lint and independent testing verification",
-    "status": "completed"
+    "content": "Download RTY/MYM/ES/MCL/MGC raw files and create per-symbol configs",
+    "status": "in_progress"
   },
   {
-    "content": "Summarize holdout results and final MNQ verdict honestly",
-    "status": "completed"
+    "content": "Run strict holdout protocol for RTY, MYM, ES, MCL, MGC",
+    "status": "pending"
+  },
+  {
+    "content": "Build cross-instrument holdout summary table and verdicts",
+    "status": "pending"
+  },
+  {
+    "content": "Run tests/lint and provide concise cross-instrument result",
+    "status": "pending"
   }
 ]

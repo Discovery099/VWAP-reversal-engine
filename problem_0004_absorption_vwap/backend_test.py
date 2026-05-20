@@ -22,7 +22,7 @@ class AbsorptionVWAPTester:
         try:
             test_func()
             self.tests_passed += 1
-            print(f"✅ Passed")
+            print("✅ Passed")
             return True
         except AssertionError as e:
             print(f"❌ Failed - {str(e)}")
