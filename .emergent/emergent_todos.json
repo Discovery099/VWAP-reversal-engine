@@ -1,18 +1,6 @@
 [
   {
-    "content": "Add final NOT_VALIDATED repositioned-use-case report section",
-    "status": "completed"
-  },
-  {
-    "content": "Update Pine v6 warning/filter script mode booleans and defaults",
-    "status": "completed"
-  },
-  {
-    "content": "Run tests/lint and independent verification",
-    "status": "in_progress"
-  },
-  {
     "content": "Package final repository zip",
-    "status": "pending"
+    "status": "completed"
   }
 ]
