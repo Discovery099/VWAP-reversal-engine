@@ -1,14 +1,6 @@
 [
   {
-    "content": "Run MNQ diagnostic decomposition and generate JSON/MD/CSV report",
-    "status": "completed"
-  },
-  {
-    "content": "Run pytest/lint and independent testing agent for diagnostic outputs",
-    "status": "in_progress"
-  },
-  {
     "content": "Summarize diagnostic findings and top 10 viable candidates honestly",
-    "status": "pending"
+    "status": "completed"
   }
 ]
