@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 from .data_loader import load_dataset, save_processed
 from .diagnostics import run_diagnostics, write_diagnostic_report
+from .holdout import run_holdout_confirmation, write_holdout_report
 from .plateau import load_grid, run_plateau
 from .reports import latest_run_path, write_plateau_report, write_validation_report
 from .schemas import load_yaml
@@ -70,6 +71,25 @@ def cmd_diagnose(args) -> int:
     return 0
 
 
+def cmd_holdout(args) -> int:
+    cfg = _load_config(args.config)
+    df = load_dataset(args.data, cfg)
+    result = run_holdout_confirmation(
+        df,
+        cfg,
+        args.grid,
+        train_end=args.train_end,
+        holdout_start=args.holdout_start,
+        top_n=args.top_n,
+    )
+    run_dir = write_holdout_report(result, cfg)
+    verdict = result["summary"]["final_verdict"]
+    print(f"holdout_verdict={verdict['verdict']}")
+    print(f"reason={verdict['reason']}")
+    print(f"run_dir={run_dir}")
+    return 0
+
+
 def cmd_report(args) -> int:
     if args.run == "latest":
         run_dir = latest_run_path("reports")
@@ -98,6 +118,15 @@ def build_parser() -> argparse.ArgumentParser:
     diagnose.add_argument("--grid", default="configs/grid.yaml")
     diagnose.add_argument("--plateau-dir", default=None)
     diagnose.set_defaults(func=cmd_diagnose)
+
+    holdout = sub.add_parser("holdout", help="Run strict training-selection / holdout confirmation")
+    holdout.add_argument("--data", required=True)
+    holdout.add_argument("--config", default="configs/default_config.yaml")
+    holdout.add_argument("--grid", default="configs/grid.yaml")
+    holdout.add_argument("--train-end", default="2023-12-31 23:59:59")
+    holdout.add_argument("--holdout-start", default="2024-01-01 00:00:00")
+    holdout.add_argument("--top-n", type=int, default=10)
+    holdout.set_defaults(func=cmd_holdout)
 
     validate.add_argument("--data", required=True)
     validate.add_argument("--config", default="configs/default_config.yaml")

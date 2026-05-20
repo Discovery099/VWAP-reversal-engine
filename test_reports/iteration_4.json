@@ -1,0 +1,131 @@
+{
+  "summary": "Completed verification of MNQ strict walk-forward/holdout validation system. All artifacts verified, tests pass, and system correctly returns NOT_VALIDATED verdict.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": [],
+    "minor_issues": [
+      {
+        "file": "research_engine/cli.py",
+        "issue": "Extra blank line (E303) - fixed",
+        "impact": "Style only, no functional impact",
+        "fix_priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Holdout CLI command structure verified - matches expected format",
+    "All 7 required holdout report files exist (holdout_summary.json, holdout_report.md, candidate_metrics.csv, side_breakdown.csv, session_breakdown.csv, training_grid_results.csv, frozen_candidates.csv)",
+    "Train/holdout split correct: training_bars=79233, holdout_bars=43062, training ends 2023-12-29, holdout starts 2024-01-02",
+    "Training plateau correctly selected from training window only: STABLE_PLATEAU_FOUND with centroid volume_lookback=150, threshold=95, atr_length=40, max_displacement=0.3, near_vwap=0.25, horizon=15",
+    "Final verdict correctly returns NOT_VALIDATED with reason: 'No frozen training-selected candidate passed all holdout hard gates'",
+    "Best candidate verified: default_above_vwap_shorts_only fixed_horizon with 81 trades, expectancy=43.31, PF=1.606, passes_gates=False",
+    "Frozen candidates verified: 8 predefined + 10 training plateau top candidates = 18 total",
+    "All 14 pytest tests pass (test_data_loader, test_diagnostics, test_features, test_holdout, test_labels, test_signal_logic, test_validation, test_vwap)",
+    "Lint passes with only style warnings (line length) - no syntax errors",
+    "No live execution, broker, webhook, or trading recommendation code found"
+  ],
+  "test_report_links": [
+    "/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_150013/holdout_summary.json",
+    "/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_150013/holdout_report.md",
+    "/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_150013/candidate_metrics.csv",
+    "/app/problem_0004_absorption_vwap/reports/holdout/holdout_20260520_150013/frozen_candidates.csv"
+  ],
+  "success_percentage": {
+    "backend": "100%",
+    "frontend": "N/A (backend only)",
+    "overall": "100%"
+  },
+  "action_item_for_main_agent": "",
+  "updated_files": [
+    "/app/problem_0004_absorption_vwap/research_engine/cli.py"
+  ],
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "false",
+  "detailed_verification": {
+    "holdout_verdict": {
+      "expected": "NOT_VALIDATED",
+      "actual": "NOT_VALIDATED",
+      "reason": "No frozen training-selected candidate passed all holdout hard gates. Preserve as filter/exit research candidate only.",
+      "status": "PASS"
+    },
+    "best_candidate": {
+      "id": "default_above_vwap_shorts_only",
+      "exit_style": "fixed_horizon",
+      "trades": 81,
+      "expectancy_after_cost": 43.30864197530864,
+      "profit_factor": 1.606133909287257,
+      "passes_holdout_hard_gates": false,
+      "lift_pp": -3.7037037037037033,
+      "failure_reasons": [
+        "Only 81 trades < 100 minimum required",
+        "Negative lift (-3.70pp) vs same-universe baseline"
+      ],
+      "status": "PASS - correctly fails hard gates"
+    },
+    "training_plateau": {
+      "status": "STABLE_PLATEAU_FOUND",
+      "centroid": {
+        "volume_lookback": 150,
+        "high_volume_percentile_threshold": 95,
+        "atr_length": 40,
+        "max_displacement_atr": 0.3,
+        "near_vwap_threshold_atr": 0.25,
+        "reversal_horizon_bars": 15
+      },
+      "stable_count": 2190,
+      "max_neighbor_count": 12,
+      "status": "PASS"
+    },
+    "data_split": {
+      "training_bars": 79233,
+      "holdout_bars": 43062,
+      "training_end": "2023-12-29T15:55:00-05:00",
+      "holdout_start": "2024-01-02T09:30:00-05:00",
+      "status": "PASS"
+    },
+    "frozen_candidates": {
+      "predefined_count": 8,
+      "training_plateau_count": 10,
+      "total_count": 18,
+      "predefined_list": [
+        "default_all_trades",
+        "default_above_vwap_shorts_only",
+        "default_below_vwap_longs_only",
+        "default_excluding_near_vwap",
+        "default_excluding_last_30m",
+        "default_displacement_010_020",
+        "default_vwap_distance_100_200",
+        "default_volume_975_990"
+      ],
+      "training_plateau_list": [
+        "train_plateau_01",
+        "train_plateau_02",
+        "train_plateau_03",
+        "train_plateau_04",
+        "train_plateau_05",
+        "train_plateau_06",
+        "train_plateau_07",
+        "train_plateau_08",
+        "train_plateau_09",
+        "train_plateau_10"
+      ],
+      "status": "PASS"
+    },
+    "hard_gates": {
+      "min_trades": 100,
+      "min_lift_pp": 4.0,
+      "positive_after_cost_expectancy": true,
+      "profit_factor_gt": 1.15,
+      "positive_month_pct_min": 0.6,
+      "largest_month_profit_share_max": 0.5,
+      "max_drawdown_acceptable_proxy": "total net pnl / abs(max drawdown) >= 0.5",
+      "stable_training_plateau_required": true,
+      "status": "PASS - correctly enforced"
+    }
+  }
+}
