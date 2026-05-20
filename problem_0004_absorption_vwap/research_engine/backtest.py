@@ -40,9 +40,18 @@ def build_trades(
 
     df = feature_df.sort_values(["symbol", "timestamp"]).reset_index(drop=True).copy()
     df["bar_id"] = np.arange(len(df))
-    mask = pd.Series(signal_mask, index=feature_df.index).reindex(feature_df.index).fillna(False).to_numpy()
+    mask = pd.Series(signal_mask, index=feature_df.index).fillna(False).to_numpy()
+    if len(mask) != len(df):
+        mask = pd.Series(signal_mask).fillna(False).to_numpy()
+    signal_positions = np.where(mask)[0]
+
+    group_end = np.zeros(len(df), dtype=int)
+    for _, idx in df.groupby(["symbol", "session_date"], sort=False).indices.items():
+        positions = np.asarray(idx, dtype=int)
+        group_end[positions] = int(positions.max()) + 1
+
     trades = []
-    for original_idx in np.where(mask)[0]:
+    for original_idx in signal_positions:
         row = df.iloc[original_idx]
         if direction_series is not None:
             direction = direction_series.iloc[original_idx] if hasattr(direction_series, "iloc") else direction_series[original_idx]
@@ -55,11 +64,14 @@ def build_trades(
                 direction = "short" if row["close"] > row["session_vwap"] else "long"
             else:
                 continue
-        same = df[(df["symbol"] == row["symbol"]) & (df["session_date"] == row["session_date"]) & (df["bar_id"] > row["bar_id"])]
-        if len(same) < 1:
+        end_pos = int(group_end[original_idx])
+        start_pos = int(original_idx) + 1
+        if start_pos >= end_pos:
             continue
-        entry_bar = same.iloc[0]
-        future = same.head(horizon)
+        future = df.iloc[start_pos:min(end_pos, start_pos + horizon)]
+        if future.empty:
+            continue
+        entry_bar = future.iloc[0]
         entry = float(entry_bar["open"])
         vwap = float(row["session_vwap"])
         exit_price = float(future["close"].iloc[-1])

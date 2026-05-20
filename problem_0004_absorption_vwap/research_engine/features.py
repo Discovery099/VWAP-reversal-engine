@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from bisect import bisect_right, insort
+
 from typing import Any, Dict
 
 import numpy as np
@@ -29,17 +31,23 @@ def add_atr(df: pd.DataFrame, length: int) -> pd.DataFrame:
 
 def rolling_percentile_rank(series: pd.Series, lookback: int, min_periods: int | None = None) -> pd.Series:
     min_periods = min_periods or lookback
-
-    def pct_rank(values: np.ndarray) -> float:
-        current = values[-1]
-        if np.isnan(current):
-            return np.nan
-        valid = values[~np.isnan(values)]
-        if len(valid) == 0:
-            return np.nan
-        return 100.0 * float((valid <= current).sum()) / float(len(valid))
-
-    return series.rolling(lookback, min_periods=min_periods).apply(pct_rank, raw=True)
+    values = series.to_numpy(dtype=float)
+    result = np.full(len(values), np.nan, dtype=float)
+    window: list[float] = []
+    queue: list[float] = []
+    for i, current in enumerate(values):
+        queue.append(current)
+        if not np.isnan(current):
+            insort(window, float(current))
+        if len(queue) > lookback:
+            old = queue.pop(0)
+            if not np.isnan(old):
+                remove_at = bisect_right(window, float(old)) - 1
+                if remove_at >= 0:
+                    window.pop(remove_at)
+        if len(window) >= min_periods and not np.isnan(current):
+            result[i] = 100.0 * bisect_right(window, float(current)) / len(window)
+    return pd.Series(result, index=series.index)
 
 
 def compute_absorption_features(df: pd.DataFrame, cfg: Dict[str, Any] | None = None) -> pd.DataFrame:

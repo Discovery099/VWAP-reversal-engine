@@ -48,18 +48,15 @@ def _parse_timestamp(raw: pd.DataFrame, mapping: Dict[str, str | None], cfg: Dic
     session_cfg = cfg.get("session", {}) if cfg else {}
     tz = session_cfg.get("timezone")
     if mapping.get("timestamp"):
-        ts = pd.to_datetime(raw[mapping["timestamp"]], errors="coerce")
+        ts = pd.to_datetime(raw[mapping["timestamp"]], errors="coerce", utc=True)
     elif mapping.get("date") and mapping.get("time"):
-        ts = pd.to_datetime(raw[mapping["date"]].astype(str) + " " + raw[mapping["time"]].astype(str), errors="coerce")
+        ts = pd.to_datetime(raw[mapping["date"]].astype(str) + " " + raw[mapping["time"]].astype(str), errors="coerce", utc=True)
     else:
         raise ValueError("No timestamp column found. Configure column_mapping.timestamp or column_mapping.date/time.")
     if ts.isna().any():
         raise ValueError(f"Unparseable timestamps found: {int(ts.isna().sum())}")
     if tz:
-        if getattr(ts.dt, "tz", None) is None:
-            ts = ts.dt.tz_localize(tz)
-        else:
-            ts = ts.dt.tz_convert(tz)
+        ts = ts.dt.tz_convert(tz)
     return ts
 
 
@@ -89,12 +86,14 @@ def load_csv(path: str | Path, cfg: Dict[str, Any] | None = None) -> pd.DataFram
             raise ValueError(f"Non-numeric values found in {col}: {int(out[col].isna().sum())}")
 
     if mapping.get("symbol"):
-        out["symbol"] = raw[mapping["symbol"]].astype(str)
+        out["symbol"] = raw[mapping["symbol"]].fillna(str(cfg.get("default_symbol", "UNKNOWN"))).astype(str)
+        out.loc[out["symbol"].str.strip().isin(["", "nan", "NaN", "None"]), "symbol"] = str(cfg.get("default_symbol", "UNKNOWN"))
     else:
         out["symbol"] = str(cfg.get("default_symbol", "UNKNOWN"))
 
     if mapping.get("timeframe"):
-        out["timeframe"] = raw[mapping["timeframe"]].astype(str)
+        out["timeframe"] = raw[mapping["timeframe"]].fillna(str(cfg.get("default_timeframe", "1m"))).astype(str)
+        out.loc[out["timeframe"].str.strip().isin(["", "nan", "NaN", "None"]), "timeframe"] = str(cfg.get("default_timeframe", "1m"))
     else:
         out["timeframe"] = str(cfg.get("default_timeframe", "1m"))
 

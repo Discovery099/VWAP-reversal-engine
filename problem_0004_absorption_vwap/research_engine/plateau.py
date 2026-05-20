@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List
 import numpy as np
 import pandas as pd
 
-from .backtest import build_trades, summarize_trades
+from .backtest import round_trip_cost_price
 from .features import compute_absorption_features
 from .schemas import deep_merge, load_yaml
 
@@ -23,6 +23,103 @@ def _param_product(grid: Dict[str, Iterable[Any]], max_combinations: int | None 
 def _cfg_with_params(base_cfg: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
     override = {"features": params}
     return deep_merge(base_cfg, override)
+
+
+def _location_for_threshold(vwap_distance_atr: pd.Series, near_threshold: float) -> pd.Series:
+    loc = pd.Series("unknown", index=vwap_distance_atr.index, dtype=object)
+    loc[vwap_distance_atr.abs() <= near_threshold] = "near_vwap"
+    loc[vwap_distance_atr > near_threshold] = "above_vwap"
+    loc[vwap_distance_atr < -near_threshold] = "below_vwap"
+    loc[vwap_distance_atr.isna()] = "unknown"
+    return loc
+
+
+def _group_end_positions(df: pd.DataFrame) -> np.ndarray:
+    group_end = np.zeros(len(df), dtype=int)
+    for _, idx in df.groupby(["symbol", "session_date"], sort=False).indices.items():
+        positions = np.asarray(idx, dtype=int)
+        group_end[positions] = int(positions.max()) + 1
+    return group_end
+
+
+def _fast_absorption_metrics(features: pd.DataFrame, cfg: Dict[str, Any], signal_mask: pd.Series) -> Dict[str, Any]:
+    if signal_mask.sum() == 0:
+        return {
+            "trade_count": 0,
+            "hit_rate": 0.0,
+            "expectancy_after_cost": 0.0,
+            "total_net_pnl": 0.0,
+            "profit_factor": 0.0,
+            "max_drawdown": 0.0,
+        }
+
+    horizon = int(cfg.get("features", {}).get("reversal_horizon_bars", 15))
+    point_value = float(cfg.get("costs", {}).get("point_value", 1.0) or 1.0)
+    cost_price = round_trip_cost_price(cfg)
+    df = features.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
+    mask = signal_mask.reindex(features.index).fillna(False).to_numpy()
+    if len(mask) != len(df):
+        mask = pd.Series(signal_mask).fillna(False).to_numpy()
+
+    open_arr = df["open"].to_numpy(float)
+    high_arr = df["high"].to_numpy(float)
+    low_arr = df["low"].to_numpy(float)
+    close_arr = df["close"].to_numpy(float)
+    vwap_arr = df["session_vwap"].to_numpy(float)
+    loc_arr = df["location_vs_vwap"].astype(str).to_numpy()
+    group_end = _group_end_positions(df)
+
+    pnl_values: List[float] = []
+    for pos in np.flatnonzero(mask):
+        loc = loc_arr[pos]
+        if loc not in {"above_vwap", "below_vwap"}:
+            continue
+        start = int(pos) + 1
+        end = min(int(group_end[pos]), start + horizon)
+        if start >= end or np.isnan(vwap_arr[pos]):
+            continue
+        entry = open_arr[start]
+        vwap = vwap_arr[pos]
+        if loc == "below_vwap":
+            touches = np.flatnonzero(high_arr[start:end] >= vwap)
+            exit_price = vwap if len(touches) else close_arr[end - 1]
+            gross_points = exit_price - entry
+        else:
+            touches = np.flatnonzero(low_arr[start:end] <= vwap)
+            exit_price = vwap if len(touches) else close_arr[end - 1]
+            gross_points = entry - exit_price
+        pnl_values.append((gross_points - cost_price) * point_value)
+
+    if not pnl_values:
+        return {
+            "trade_count": 0,
+            "hit_rate": 0.0,
+            "expectancy_after_cost": 0.0,
+            "total_net_pnl": 0.0,
+            "profit_factor": 0.0,
+            "max_drawdown": 0.0,
+        }
+    pnl = pd.Series(pnl_values, dtype=float)
+    wins = pnl[pnl > 0]
+    losses = pnl[pnl < 0]
+    gross_profit = float(wins.sum())
+    gross_loss = float(losses.sum())
+    if gross_loss < 0:
+        profit_factor = gross_profit / abs(gross_loss)
+    elif gross_profit > 0:
+        profit_factor = float("inf")
+    else:
+        profit_factor = 0.0
+    equity = pnl.cumsum()
+    drawdown = equity - equity.cummax()
+    return {
+        "trade_count": int(len(pnl)),
+        "hit_rate": float((pnl > 0).mean()),
+        "expectancy_after_cost": float(pnl.mean()),
+        "total_net_pnl": float(pnl.sum()),
+        "profit_factor": profit_factor,
+        "max_drawdown": float(drawdown.min()),
+    }
 
 
 def select_plateau_centroid(results: pd.DataFrame, grid: Dict[str, List[Any]], min_neighbors: int = 5) -> Dict[str, Any]:
@@ -70,32 +167,34 @@ def run_plateau(df: pd.DataFrame, base_cfg: Dict[str, Any], grid_cfg: Dict[str, 
     min_events = int(base_cfg.get("validation", {}).get("min_events_for_full_validation", 100))
     rows: List[Dict[str, Any]] = []
 
-    # Cache expensive ATR/VWAP/volume percentile calculations. Threshold-only parameters
-    # are then evaluated cheaply without repeatedly recomputing rolling features.
+    # Cache expensive ATR/VWAP/volume percentile calculations by the parameters that
+    # actually affect those columns. VWAP location and threshold logic are re-evaluated
+    # cheaply for every grid row without changing strategy rules.
     feature_cache: Dict[tuple, pd.DataFrame] = {}
     for params in _param_product(grid, max_combinations):
-        cache_key = (params.get("volume_lookback"), params.get("atr_length"), params.get("near_vwap_threshold_atr"))
+        cache_key = (params.get("volume_lookback"), params.get("atr_length"))
         if cache_key not in feature_cache:
             cfg_for_features = _cfg_with_params(base_cfg, params)
             feature_cache[cache_key] = compute_absorption_features(df, cfg_for_features)
         features = feature_cache[cache_key].copy()
+        near_threshold = float(params["near_vwap_threshold_atr"])
+        features["location_vs_vwap"] = _location_for_threshold(features["vwap_distance_atr"], near_threshold)
         features["high_volume_pass"] = features["volume_percentile"] >= float(params["high_volume_percentile_threshold"])
         features["low_displacement_pass"] = features["displacement_atr"] <= float(params["max_displacement_atr"])
-        features["is_absorption_bar"] = (
+        signal_mask = (
             features["high_volume_pass"]
             & features["low_displacement_pass"]
             & features["location_vs_vwap"].isin(["above_vwap", "below_vwap"])
         )
-        features["absorption_side"] = np.where(features["is_absorption_bar"], features["location_vs_vwap"], "unknown")
         cfg = _cfg_with_params(base_cfg, params)
-        trades = build_trades(features, cfg, features["is_absorption_bar"], "absorption_vwap")
-        metrics = summarize_trades(trades)
+        metrics = _fast_absorption_metrics(features, cfg, signal_mask)
         row = dict(params)
         row.update({
             "trade_count": metrics["trade_count"],
             "hit_rate": metrics["hit_rate"],
             "expectancy_after_cost": metrics["expectancy_after_cost"],
             "profit_factor": metrics["profit_factor"],
+            "max_drawdown": metrics["max_drawdown"],
             "validation_status": "CANDIDATE" if metrics["trade_count"] else "NO_EVENTS",
         })
         row["passes_hard_filters"] = bool(
