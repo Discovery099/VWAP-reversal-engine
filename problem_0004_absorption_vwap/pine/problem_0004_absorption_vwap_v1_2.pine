@@ -1,0 +1,162 @@
+//@version=6
+strategy("Post-Absorption VWAP Reversal Engine V1.2 (RTH Warning/Filter + Optional Paper)", overlay=true, pyramiding=0, process_orders_on_close=false, calc_on_every_tick=false, commission_type=strategy.commission.cash_per_contract, commission_value=0)
+
+// Manual QA / limitations:
+// 1. This script detects high-volume + low-displacement bars consistent with possible absorption; it does not prove hidden liquidity.
+// 2. Pine rolling percentile is implemented with a simple loop over chart bars and may differ slightly from Python around missing data.
+// 3. Signals are confirmed-bar only. No forward labels or future outcomes are used.
+// 4. Paper strategy mode is for TradingView backtest/warning only, not live execution.
+// 5. Compare volume percentile, displacement/ATR, VWAP distance/ATR, and side against Python on the same exported bars.
+// 6. TradingView strategy slippage/commission must be configured manually in Strategy Properties unless explicitly hardcoded in strategy().
+// 7. Default mode is warning/filter only. Paper strategy entries require explicit opt-in and are not live execution.
+// 8. V1.2 adds RTH session matching so TradingView behavior can better match the Python RTH research dataset.
+
+//
+// Preset input notes from diagnostics (manually enter these values in Settings):
+// - Default research setup: VL100 / VP95 / ATR60 / Disp0.3 / Near0.25 / H15
+// - Candidate 1: VL75 / VP97.5 / ATR60 / Disp0.5 / Near0.5 / H20
+// - Candidate 4: VL100 / VP97.5 / ATR60 / Disp0.2 / Near0.1 / H10
+// - Candidate 8: VL100 / VP97.5 / ATR20 / Disp0.3 / Near0.25 / H5
+// These candidates are research diagnostics only; they are not validated live-trading strategies.
+
+
+groupGeneral = "General"
+groupAbsorption = "Absorption Detection"
+groupVwap = "VWAP Context"
+groupTrade = "Trade / Alert Behavior"
+groupRisk = "Risk and Costs"
+groupVisuals = "Visuals / Debug"
+
+enableAbsorptionModule = input.bool(true, "enableAbsorptionModule", group=groupGeneral)
+scriptMode = input.string("Warning/filter only", "Mode", options=["Warning/filter only", "Paper strategy optional"], group=groupGeneral)
+useRthOnly = input.bool(true, "useRthOnly", group=groupGeneral)
+rthSession = input.session("0930-1600", "RTH session", group=groupGeneral)
+rthTimezone = input.string("America/New_York", "RTH timezone", group=groupGeneral)
+
+presetNotes = input.string("Default research setup", "Preset notes only", options=["Default research setup", "Candidate 1: VL75 / VP97.5 / ATR60 / Disp0.5 / Near0.5 / H20", "Candidate 4: VL100 / VP97.5 / ATR60 / Disp0.2 / Near0.1 / H10", "Candidate 8: VL100 / VP97.5 / ATR20 / Disp0.3 / Near0.25 / H5"], group=groupGeneral)
+volumeLookback = input.int(100, "volumeLookback", minval=5, group=groupAbsorption)
+highVolumePercentileThreshold = input.float(95.0, "highVolumePercentileThreshold", minval=50, maxval=100, step=0.5, group=groupAbsorption)
+atrLength = input.int(60, "atrLength", minval=1, group=groupAbsorption)
+maxDisplacementAtr = input.float(0.3, "maxDisplacementAtr", minval=0.0, step=0.05, group=groupAbsorption)
+nearVwapThresholdAtr = input.float(0.25, "nearVwapThresholdAtr", minval=0.0, step=0.05, group=groupVwap)
+reversalHorizonBars = input.int(15, "reversalHorizonBars", minval=1, group=groupTrade)
+showAbsorptionMarkers = input.bool(true, "showAbsorptionMarkers", group=groupVisuals)
+showVwap = input.bool(true, "showVwap", group=groupVisuals)
+showDebugTable = input.bool(true, "showDebugTable", group=groupVisuals)
+enablePaperStrategy = input.bool(false, "enablePaperStrategy (default OFF; paper only)", group=groupTrade)
+allowFadeAboveVwap = input.bool(true, "allowFadeAboveVwap", group=groupTrade)
+allowFadeBelowVwap = input.bool(true, "allowFadeBelowVwap", group=groupTrade)
+maxTradesPerDay = input.int(3, "maxTradesPerDay", minval=0, group=groupTrade)
+estimatedCommission = input.float(0.0, "estimatedCommission", minval=0.0, group=groupRisk)
+estimatedSlippageTicks = input.float(1.0, "estimatedSlippageTicks", minval=0.0, group=groupRisk)
+stopAtrMultiple = input.float(1.0, "Stop ATR multiple beyond signal bar", minval=0.1, group=groupRisk)
+
+f_volume_percentile(src, lookback) =>
+    float count = 0.0
+    float valid = 0.0
+    for i = 0 to lookback - 1
+        if not na(src[i])
+            valid += 1.0
+            if src[i] <= src
+                count += 1.0
+    valid > 0 ? 100.0 * count / valid : na
+
+// RTH-aware session handling. When useRthOnly is true, VWAP resets at RTH session start and only accumulates RTH bars.
+// When useRthOnly is false, V1.1 daily reset behavior is used.
+inRth = not na(time(timeframe.period, rthSession, rthTimezone))
+rthSessionStart = inRth and not inRth[1]
+dailySessionStart = timeframe.change("D")
+newSession = useRthOnly ? rthSessionStart : dailySessionStart
+vwapActiveBar = useRthOnly ? inRth : true
+var float cumPV = na
+var float cumVol = na
+typicalPrice = (high + low + close) / 3.0
+if newSession or na(cumPV) or na(cumVol)
+    cumPV := vwapActiveBar ? typicalPrice * volume : na
+    cumVol := vwapActiveBar ? volume : na
+else if vwapActiveBar
+    cumPV += typicalPrice * volume
+    cumVol += volume
+sessionVwap = vwapActiveBar and cumVol > 0 ? cumPV / cumVol : na
+
+atr = ta.atr(atrLength)
+bodyDisplacement = math.abs(close - open)
+displacementAtr = atr > 0 ? bodyDisplacement / atr : na
+volumePercentile = f_volume_percentile(volume, volumeLookback)
+vwapDistanceAtr = atr > 0 and not na(sessionVwap) ? (close - sessionVwap) / atr : na
+nearVwap = not na(vwapDistanceAtr) and math.abs(vwapDistanceAtr) <= nearVwapThresholdAtr
+aboveVwap = not nearVwap and close > sessionVwap
+belowVwap = not nearVwap and close < sessionVwap
+locationLabel = nearVwap ? "near_vwap" : aboveVwap ? "above_vwap" : belowVwap ? "below_vwap" : "unknown"
+
+highVolumePass = volumePercentile >= highVolumePercentileThreshold
+lowDisplacementPass = displacementAtr <= maxDisplacementAtr
+isAbsorptionBar = enableAbsorptionModule and barstate.isconfirmed and vwapActiveBar and highVolumePass and lowDisplacementPass and not na(sessionVwap) and not na(atr)
+
+// Warning/filter booleans intended for alerts, screener-style workflows, and downstream manual filters.
+// These do not imply validation and do not place orders.
+absorptionWarning = isAbsorptionBar
+aboveVwapAbsorption = absorptionWarning and aboveVwap
+belowVwapAbsorption = absorptionWarning and belowVwap
+nearVwapAbsorption = absorptionWarning and nearVwap
+vwapReversionCandidate = aboveVwapAbsorption or belowVwapAbsorption
+
+shortCandidate = aboveVwapAbsorption and allowFadeAboveVwap
+longCandidate = belowVwapAbsorption and allowFadeBelowVwap
+neutralAbsorption = nearVwapAbsorption
+
+blockReason = not enableAbsorptionModule ? "MODULE_DISABLED" : not vwapActiveBar ? "OUTSIDE_RTH" : na(sessionVwap) ? "VWAP_UNAVAILABLE" : na(atr) ? "ATR_UNAVAILABLE" : na(volumePercentile) ? "VOLUME_LOOKBACK_UNAVAILABLE" : isAbsorptionBar ? "PASS" : not highVolumePass ? "HIGH_VOLUME_FAIL" : not lowDisplacementPass ? "DISPLACEMENT_FAIL" : "NOT_ABSORPTION"
+
+plot(showVwap ? sessionVwap : na, "Session VWAP", color=color.new(color.blue, 0), linewidth=2)
+plotshape(showAbsorptionMarkers and isAbsorptionBar, title="Possible absorption proxy", style=shape.circle, location=location.abovebar, color=color.new(color.yellow, 0), size=size.tiny, text="ABS")
+plotshape(showAbsorptionMarkers and shortCandidate, title="Above VWAP fade candidate", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small, text="Fade↓")
+plotshape(showAbsorptionMarkers and longCandidate, title="Below VWAP fade candidate", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), size=size.small, text="Fade↑")
+plotshape(showAbsorptionMarkers and neutralAbsorption, title="Near VWAP neutral absorption", style=shape.diamond, location=location.top, color=color.new(color.gray, 0), size=size.tiny, text="NEAR")
+
+var int tradesToday = 0
+if newSession
+    tradesToday := 0
+var int entryBar = na
+if strategy.position_size == 0
+    entryBar := na
+
+canTrade = scriptMode == "Paper strategy optional" and enablePaperStrategy and vwapActiveBar and tradesToday < maxTradesPerDay
+if canTrade and shortCandidate and strategy.position_size == 0
+    strategy.entry("ABS_SHORT", strategy.short, comment="Above VWAP possible absorption fade")
+    strategy.exit("ABS_SHORT_EXIT", "ABS_SHORT", stop=high + atr * stopAtrMultiple, limit=sessionVwap)
+    tradesToday += 1
+    entryBar := bar_index
+if canTrade and longCandidate and strategy.position_size == 0
+    strategy.entry("ABS_LONG", strategy.long, comment="Below VWAP possible absorption fade")
+    strategy.exit("ABS_LONG_EXIT", "ABS_LONG", stop=low - atr * stopAtrMultiple, limit=sessionVwap)
+    tradesToday += 1
+    entryBar := bar_index
+if scriptMode == "Paper strategy optional" and enablePaperStrategy and strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= reversalHorizonBars
+    strategy.close_all(comment="Time stop")
+
+alertcondition(absorptionWarning, "absorptionWarning", "High volume + low displacement bar, consistent with possible absorption proxy. Warning/filter only; not a trade recommendation.")
+alertcondition(aboveVwapAbsorption, "aboveVwapAbsorption", "Possible absorption proxy above VWAP. Treat as a short-side VWAP reversion warning/filter candidate only.")
+alertcondition(belowVwapAbsorption, "belowVwapAbsorption", "Possible absorption proxy below VWAP. Treat as a long-side VWAP reversion warning/filter candidate only.")
+alertcondition(nearVwapAbsorption, "nearVwapAbsorption", "Possible absorption proxy near VWAP. Ambiguous context; no directional claim.")
+alertcondition(vwapReversionCandidate, "vwapReversionCandidate", "Directional VWAP reversion candidate warning. Research/filter mode only.")
+alertcondition(shortCandidate, "Above VWAP fade candidate", "Possible absorption proxy above VWAP; paper fade candidate only.")
+alertcondition(longCandidate, "Below VWAP fade candidate", "Possible absorption proxy below VWAP; paper fade candidate only.")
+
+var table debugTable = table.new(position.top_right, 2, 8, border_width=1)
+if showDebugTable and barstate.islast
+    table.cell(debugTable, 0, 0, "Metric", bgcolor=color.new(color.gray, 70))
+    table.cell(debugTable, 1, 0, "Value", bgcolor=color.new(color.gray, 70))
+    table.cell(debugTable, 0, 1, "Volume percentile")
+    table.cell(debugTable, 1, 1, str.tostring(volumePercentile, "#.##"))
+    table.cell(debugTable, 0, 2, "Displacement/ATR")
+    table.cell(debugTable, 1, 2, str.tostring(displacementAtr, "#.####"))
+    table.cell(debugTable, 0, 3, "VWAP dist/ATR")
+    table.cell(debugTable, 1, 3, str.tostring(vwapDistanceAtr, "#.####"))
+    table.cell(debugTable, 0, 4, "Location")
+    table.cell(debugTable, 1, 4, locationLabel)
+    table.cell(debugTable, 0, 5, "Block reason")
+    table.cell(debugTable, 1, 5, blockReason)
+    table.cell(debugTable, 0, 6, "Research only")
+    table.cell(debugTable, 1, 6, scriptMode)
+    table.cell(debugTable, 0, 7, "Preset note")
+    table.cell(debugTable, 1, 7, presetNotes)

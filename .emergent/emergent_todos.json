@@ -1,6 +1,10 @@
 [
   {
-    "content": "Verify V1.1 file contains requested warning/filter defaults and no live execution additions",
+    "content": "Create Pine V1.2 separate file from V1.1 with RTH session matching",
+    "status": "completed"
+  },
+  {
+    "content": "Verify V1.2 preserves defaults/no-live-execution and package updated zip",
     "status": "completed"
   }
 ]
