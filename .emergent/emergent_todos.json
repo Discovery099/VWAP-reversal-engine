@@ -1,10 +1,6 @@
 [
   {
-    "content": "Run tests/lint and independent verification",
-    "status": "completed"
-  },
-  {
-    "content": "Summarize active/weak/inactive/insufficient recent-regime findings",
+    "content": "Verify V1.1 file contains requested warning/filter defaults and no live execution additions",
     "status": "completed"
   }
 ]
