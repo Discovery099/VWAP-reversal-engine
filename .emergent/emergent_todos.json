@@ -1,14 +1,10 @@
 [
   {
-    "content": "Run MNQ training-selection and holdout evaluation report",
+    "content": "Run tests/lint and independent testing verification",
     "status": "completed"
   },
   {
-    "content": "Run tests/lint and independent testing verification",
-    "status": "in_progress"
-  },
-  {
     "content": "Summarize holdout results and final MNQ verdict honestly",
-    "status": "pending"
+    "status": "completed"
   }
 ]
