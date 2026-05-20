@@ -1,18 +1,10 @@
 [
   {
-    "content": "Implement recent-regime analysis module/CLI and reports without changing verdict/spec",
-    "status": "completed"
-  },
-  {
-    "content": "Run recent-regime analysis across available futures CSVs",
-    "status": "completed"
-  },
-  {
     "content": "Run tests/lint and independent verification",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Summarize active/weak/inactive/insufficient recent-regime findings",
-    "status": "pending"
+    "status": "completed"
   }
 ]
