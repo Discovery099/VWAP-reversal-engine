@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from .data_loader import load_dataset, save_processed
+from .diagnostics import run_diagnostics, write_diagnostic_report
 from .plateau import load_grid, run_plateau
 from .reports import latest_run_path, write_plateau_report, write_validation_report
 from .schemas import load_yaml
@@ -55,6 +56,20 @@ def cmd_plateau(args) -> int:
     return 0
 
 
+def cmd_diagnose(args) -> int:
+    cfg = _load_config(args.config)
+    df = load_dataset(args.data, cfg)
+    result = run_diagnostics(df, cfg, args.grid, args.plateau_dir)
+    run_dir = write_diagnostic_report(result, cfg)
+    summary = result["summary"]
+    print(f"diagnostic_classification={summary['final_diagnostic_classification']['classification']}")
+    print(f"default_expectancy_after_cost={summary['default_metrics']['expectancy_after_cost']}")
+    print(f"default_profit_factor={summary['default_metrics']['profit_factor']}")
+    print(f"top_candidates={len(summary['plateau_diagnostics'].get('top_candidates', []))}")
+    print(f"run_dir={run_dir}")
+    return 0
+
+
 def cmd_report(args) -> int:
     if args.run == "latest":
         run_dir = latest_run_path("reports")
@@ -76,6 +91,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     validate = sub.add_parser("validate", help="Run feature, label, baseline, and walk-forward validation")
+
+    diagnose = sub.add_parser("diagnose", help="Run diagnostic decomposition without changing strategy logic")
+    diagnose.add_argument("--data", required=True)
+    diagnose.add_argument("--config", default="configs/default_config.yaml")
+    diagnose.add_argument("--grid", default="configs/grid.yaml")
+    diagnose.add_argument("--plateau-dir", default=None)
+    diagnose.set_defaults(func=cmd_diagnose)
+
     validate.add_argument("--data", required=True)
     validate.add_argument("--config", default="configs/default_config.yaml")
     validate.add_argument("--save-processed", default=None)
