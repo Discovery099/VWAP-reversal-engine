@@ -1,10 +1,6 @@
 [
   {
-    "content": "Create Pine V1.2 separate file from V1.1 with RTH session matching",
-    "status": "completed"
-  },
-  {
-    "content": "Verify V1.2 preserves defaults/no-live-execution and package updated zip",
+    "content": "Verify README.md exists and preserves final NOT_VALIDATED posture",
     "status": "completed"
   }
 ]
